@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/rhysmeister/todo"
 )
 
-const todoFileName = ".todo.json"
+var todoFileName = ".todo.json"
 
 func main() {
 
@@ -18,10 +21,16 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	task := flag.String("task", "", "Task to be included in the ToDo list")
+	add := flag.Bool("add", false, "Add a task to the ToDo list")
 	list := flag.Bool("list", false, "List all tasks")
 	complete := flag.Int("complete", 0, "Item to be completed")
+	del := flag.Int("del", 0, "Item to be deleted")
+	verbose := flag.Bool("v", false, "Enable verbose output")
 	flag.Parse()
+
+	if os.Getenv("TODO_FILENAME") != "" {
+		todoFileName = os.Getenv("TODO_FILENAME")
+	}
 
 	l := &todo.List{}
 
@@ -32,7 +41,11 @@ func main() {
 
 	switch {
 	case *list:
-		fmt.Print(l)
+		if *verbose {
+			fmt.Print(verboseOutput(l))
+		} else {
+			fmt.Print(l)
+		}
 	case *complete > 0:
 		if err := l.Complete(*complete); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -43,8 +56,23 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-	case *task != "":
-		l.Add(*task)
+	case *add:
+		t, err := getTask(os.Stdin, flag.Args()...)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		l.Add(t)
+
+		if err := l.Save(todoFileName); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case *del > 0:
+		if err := l.Delete(*del); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 
 		if err := l.Save(todoFileName); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -54,4 +82,33 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Invalid option")
 		os.Exit(1)
 	}
+}
+
+func getTask(r io.Reader, args ...string) (string, error) {
+	if len(args) > 0 {
+		return strings.Join(args, " "), nil
+	}
+
+	s := bufio.NewScanner(r)
+	s.Scan()
+	if err := s.Err(); err != nil {
+		return "", err
+	}
+	if len(s.Text()) == 0 {
+		return "", fmt.Errorf("task cannot be blank")
+	}
+	return s.Text(), nil
+}
+
+func verboseOutput(l *todo.List) string {
+	formatted := ""
+
+	for k, t := range *l {
+		prefix := "  "
+		if t.Done {
+			prefix = "X "
+		}
+		formatted += fmt.Sprintf("%s%d: %s %s %s\n", prefix, k+1, t.Task, t.CreatedAt, t.CompletedAt)
+	}
+	return formatted
 }
