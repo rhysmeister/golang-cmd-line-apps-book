@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 func count(r io.Reader, countLines bool, countBytes bool) int {
@@ -27,16 +28,18 @@ func count(r io.Reader, countLines bool, countBytes bool) int {
 func main() {
 	lines := flag.Bool("l", false, "Count lines")
 	bytes := flag.Bool("b", false, "Count bytes")
-	file := flag.String("file", "", "File to read text from")
+	file := flag.String("file", "", "File to read text from. Supply multiple files as a comma seperated list without spaces.")
 	flag.Parse()
 	if *file != "" {
-		f, err := os.Open(*file)
-		if err != nil {
-			fmt.Printf("%s does not exist", *file)
-			os.Exit(1)
+		for _, file := range strings.Split(*file, ",") {
+			f, err := os.Open(file)
+			if err != nil {
+				fmt.Printf("%s does not exist", file)
+				os.Exit(1)
+			}
+			defer f.Close()
+			fmt.Println(count(f, *lines, *bytes))
 		}
-		defer f.Close()
-		fmt.Println(count(f, *lines, *bytes))
 	} else {
 		fmt.Println(count(os.Stdin, *lines, *bytes))
 	}
