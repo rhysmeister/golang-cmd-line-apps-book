@@ -31,8 +31,9 @@ const (
 )
 
 type content struct {
-	Title string
-	Body  template.HTML
+	Title   string
+	Body    template.HTML
+	Preview string
 }
 
 func main() {
@@ -61,16 +62,16 @@ func run(filename string, tFname string, out io.Writer, skipPreview bool) error 
 		return err
 	}
 
-	htmlData, err := parseContent(input, tFname)
-	if err != nil {
-		return err
-	}
-
 	temp, err := ioutil.TempFile("", "mdp*.html")
 	if err != nil {
 		return err
 	}
 	if err := temp.Close(); err != nil {
+		return err
+	}
+
+	htmlData, err := parseContent(input, tFname, temp.Name())
+	if err != nil {
 		return err
 	}
 
@@ -90,7 +91,7 @@ func run(filename string, tFname string, out io.Writer, skipPreview bool) error 
 	return preview(outName)
 }
 
-func parseContent(input []byte, tFname string) ([]byte, error) {
+func parseContent(input []byte, tFname string, tempName string) ([]byte, error) {
 	// Parse the markdown file through blackfriday and bluemonday
 	// to generate a valid and safe HTML
 	output := blackfriday.Run(input)
@@ -109,8 +110,9 @@ func parseContent(input []byte, tFname string) ([]byte, error) {
 	}
 
 	c := content{
-		Title: "Markdown Preview Tool",
-		Body:  template.HTML(body),
+		Title:   "Markdown Preview Tool",
+		Body:    template.HTML(body),
+		Preview: tempName,
 	}
 
 	// Create a buffer of bytes to write to file
