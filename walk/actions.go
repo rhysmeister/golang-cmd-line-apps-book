@@ -9,11 +9,20 @@ import (
 	"path/filepath"
 )
 
-func filterOut(path, ext string, minSize int64, info os.FileInfo) bool {
+func itemInSlice(slice []string, item string) bool {
+	for _, slice_item := range slice {
+		if item == slice_item {
+			return true
+		}
+	}
+	return false
+}
+
+func filterOut(path string, ext []string, minSize int64, info os.FileInfo) bool {
 	if info.IsDir() || info.Size() < minSize {
 		return true
 	}
-	if ext != "" && filepath.Ext(path) != ext {
+	if len(ext) > 0 && !itemInSlice(ext, filepath.Ext(path)) {
 		return true
 	}
 	return false

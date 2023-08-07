@@ -7,10 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type config struct {
-	ext     string
+	ext     []string
 	size    int64
 	list    bool
 	del     bool
@@ -24,9 +25,11 @@ func main() {
 	list := flag.Bool("list", false, "List files only")
 	archive := flag.String("archive", "", "Archive directory")
 	del := flag.Bool("del", false, "Delete files")
-	ext := flag.String("ext", "", "File extension to filter out")
+	ext := flag.String("ext", "", "File extension to filter out. Provide multiple extensions as a comma-delmited string.")
 	size := flag.Int64("size", 0, "Minimum file size")
 	flag.Parse()
+
+	extensions := strings.Split(*ext, ",")
 
 	var (
 		f   = os.Stdout
@@ -42,7 +45,7 @@ func main() {
 	}
 
 	c := config{
-		ext:     *ext,
+		ext:     extensions,
 		size:    *size,
 		list:    *list,
 		del:     *del,
