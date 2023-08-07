@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func itemInSlice(slice []string, item string) bool {
@@ -18,11 +19,15 @@ func itemInSlice(slice []string, item string) bool {
 	return false
 }
 
-func filterOut(path string, ext []string, minSize int64, info os.FileInfo) bool {
+func filterOut(path string, ext []string, minSize int64, info os.FileInfo, days int) bool {
 	if info.IsDir() || info.Size() < minSize {
 		return true
 	}
 	if len(ext) > 0 && !itemInSlice(ext, filepath.Ext(path)) {
+		return true
+	}
+	cutoffTime := time.Now().AddDate(0, 0, -days)
+	if info.ModTime().Before(cutoffTime) { // suggestion S1008??
 		return true
 	}
 	return false

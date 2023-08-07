@@ -17,6 +17,7 @@ type config struct {
 	del     bool
 	wLog    io.Writer
 	archive string
+	days    int
 }
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 	del := flag.Bool("del", false, "Delete files")
 	ext := flag.String("ext", "", "File extension to filter out. Provide multiple extensions as a comma-delmited string.")
 	size := flag.Int64("size", 0, "Minimum file size")
+	days := flag.Int("days", 0, "List files newer than this number of days.")
 	flag.Parse()
 
 	extensions := strings.Split(*ext, ",")
@@ -51,6 +53,7 @@ func main() {
 		del:     *del,
 		wLog:    f,
 		archive: *archive,
+		days:    *days,
 	}
 
 	if err := run(*root, os.Stdout, c); err != nil {
@@ -66,7 +69,7 @@ func run(root string, out io.Writer, cfg config) error {
 			if err != nil {
 				return err
 			}
-			if filterOut(path, cfg.ext, cfg.size, info) {
+			if filterOut(path, cfg.ext, cfg.size, info, cfg.days) {
 				return nil
 			}
 			if cfg.list {
