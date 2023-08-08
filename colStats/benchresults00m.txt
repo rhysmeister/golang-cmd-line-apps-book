@@ -1,0 +1,7 @@
+goos: darwin
+goarch: amd64
+pkg: github.com/rhysmeister/colStats
+cpu: Intel(R) Core(TM) i5-7267U CPU @ 3.10GHz
+BenchmarkRun-4   	      10	 663313110 ns/op	495566545 B/op	 5041037 allocs/op
+PASS
+ok  	github.com/rhysmeister/colStats	9.850s
