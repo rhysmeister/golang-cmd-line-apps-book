@@ -1,6 +1,6 @@
 /*
-Copyright © 2023 Rhys Campbell
-Copyrights appy to this source code.
+Copyright © 2020 The Pragmatic Programmers, LLC
+Copyrights apply to this source code.
 Check LICENSE for details.
 */
 package cmd
@@ -12,21 +12,38 @@ import (
 
 	"github.com/rhysmeister/pScan/scan"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // addCmd represents the add command
 var addCmd = &cobra.Command{
-	Aliases: []string{"a"},
-	Args:    cobra.MinimumNArgs(1),
-	Use:     "add <host1>...<hostn>",
-	Short:   "Add new host(s) to list",
+	Use:          "add <host1>...<hostn>",
+	Aliases:      []string{"a"},
+	Short:        "Add new host(s) to list",
+	SilenceUsage: true,
+	Args:         cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		hostsFile, err := cmd.Flags().GetString("hosts-file")
-		if err != nil {
-			return err
-		}
+		hostsFile := viper.GetString("hosts-file")
 		return addAction(os.Stdout, hostsFile, args)
 	},
+}
+
+func addAction(out io.Writer, hostsFile string, args []string) error {
+	hl := &scan.HostsList{}
+
+	if err := hl.Load(hostsFile); err != nil {
+		return err
+	}
+
+	for _, h := range args {
+		if err := hl.Add(h); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(out, "Added host:", h)
+	}
+
+	return hl.Save(hostsFile)
 }
 
 func init() {
@@ -41,18 +58,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-func addAction(out io.Writer, hostsFile string, args []string) error {
-	hl := &scan.HostsList{}
-	if err := hl.Load(hostsFile); err != nil {
-		return err
-	}
-	for _, h := range args {
-		if err := hl.Add(h); err != nil {
-			return err
-		}
-		fmt.Fprintln(out, "Added host:", h)
-	}
-	return hl.Save(hostsFile)
 }
