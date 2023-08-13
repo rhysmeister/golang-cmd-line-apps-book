@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -43,27 +44,44 @@ func main() {
 	tFname := flag.String("t", "", "Alternate template name")
 	flag.Parse()
 
-	// If user did not provide input file, show usage
+	// If user did not provide input file, check if anythign is available on stdin, else show usage
+	markupTextStdIn := ""
 	if *filename == "" {
-		flag.Usage()
-		os.Exit(1)
+		s := bufio.NewScanner(os.Stdin)
+		if s.Scan() {
+			for s.Scan() {
+				markupTextStdIn += s.Text()
+			}
+		} else {
+			flag.Usage()
+			os.Exit(1)
+		}
 	}
 
 	if *tFname == "" && os.Getenv("MDP_TEMPLATE_FILE") != "" {
 		*tFname = os.Getenv("MDP_TEMPLATE_FILE")
 	}
 
-	if err := run(*filename, *tFname, os.Stdout, *skipPreview); err != nil {
+	if err := run(*filename, markupTextStdIn, *tFname, os.Stdout, *skipPreview); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(filename string, tFname string, out io.Writer, skipPreview bool) error {
+func run(filename string, markupTextStdIn string, tFname string, out io.Writer, skipPreview bool) error {
 	// Read all the data from the input file and check for errors
-	input, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return err
+	input := []byte("test")
+	if filename != "" {
+		input, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		input = input
+	} else if markupTextStdIn != "" {
+		input = []byte(markupTextStdIn)
+	} else {
+		fmt.Println("Error: No input available on stdin or from -file")
+		os.Exit(1)
 	}
 
 	temp, err := ioutil.TempFile("", "mdp*.html")
