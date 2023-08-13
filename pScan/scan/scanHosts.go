@@ -20,12 +20,12 @@ func (s state) String() string {
 	return "closed"
 }
 
-func scanPort(host string, port int) PortState {
+func scanPort(host string, port int, timeout int, protocol string) PortState {
 	p := PortState{
 		Port: port,
 	}
 	address := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	scanConn, err := net.DialTimeout("tcp", address, 1*time.Second)
+	scanConn, err := net.DialTimeout(protocol, address, time.Duration(float64(timeout)*float64(time.Second)))
 	if err != nil {
 		return p
 	}
@@ -40,7 +40,7 @@ type Results struct {
 	PortStates []PortState
 }
 
-func Run(hl *HostsList, ports []int) []Results {
+func Run(hl *HostsList, ports []int, timeout int, protocol string) []Results {
 	res := make([]Results, 0, len(hl.Hosts))
 	for _, h := range hl.Hosts {
 		r := Results{
@@ -52,7 +52,7 @@ func Run(hl *HostsList, ports []int) []Results {
 			continue
 		}
 		for _, p := range ports {
-			r.PortStates = append(r.PortStates, scanPort(h, p))
+			r.PortStates = append(r.PortStates, scanPort(h, p, timeout, protocol))
 		}
 		res = append(res, r)
 	}

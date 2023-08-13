@@ -6,9 +6,12 @@ Check LICENSE for details.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/rhysmeister/pScan/scan"
 	"github.com/spf13/cobra"
@@ -21,25 +24,67 @@ var scanCmd = &cobra.Command{
 	Short: "Run a port scan on the hosts",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		hostsFile := viper.GetString("hosts-file")
-		ports, err := cmd.Flags().GetIntSlice("ports")
-		if err != nil {
-			return err
+		ports := viper.GetString("ports")
+		var port_list []int
+		timeout := viper.GetInt("timeout")
+		protocol := viper.GetString("protocol")
+		if protocol != "tcp" && protocol != "udp" {
+			return fmt.Errorf("invalid protocol value supplied: %s", protocol)
 		}
-		return scanAction(os.Stdout, hostsFile, ports)
+		filter := viper.GetString("filter")
+		if filter != "open" && filter != "closed" && filter != "both" {
+			return fmt.Errorf("invalid filter value supplied: %s", filter)
+		}
+
+		if strings.Contains(ports, ",") {
+			for _, p := range strings.Split(ports, ",") {
+				p, err := strconv.Atoi(p)
+				if err != nil {
+					return errors.New("invalid value passed for --ports")
+				}
+				if p < 1 || p > 65535 {
+					return fmt.Errorf("invalid port number: %d", p)
+				}
+				port_list = append(port_list, p)
+			}
+		} else if strings.Contains(ports, "-") {
+			start, err := strconv.Atoi(strings.Split(ports, "-")[0])
+			if err != nil {
+				return errors.New("invalid value passed for --ports")
+			}
+			end, err := strconv.Atoi(strings.Split(ports, "-")[1])
+			if err != nil {
+				return errors.New("invalid value passed for --ports")
+			}
+			for i := start; i <= end; i++ {
+				if i < 1 || i > 65535 {
+					return fmt.Errorf("invalid port number: %d", i)
+				}
+				port_list = append(port_list, i)
+			}
+		} else if p, err := strconv.Atoi(ports); err == nil {
+			if p < 1 || p > 65535 {
+				return fmt.Errorf("invalid port number: %d", p)
+			}
+			port_list = append(port_list, p)
+		} else {
+			return errors.New("invalid value passed for --ports")
+		}
+		return scanAction(os.Stdout, hostsFile, port_list, timeout, protocol, filter)
 	},
 }
 
-func scanAction(out io.Writer, hostsFile string, ports []int) error {
+func scanAction(out io.Writer, hostsFile string, ports []int, timeout int, protocol string, filter string) error {
 	hl := &scan.HostsList{}
 
 	if err := hl.Load(hostsFile); err != nil {
 		return err
 	}
-	results := scan.Run(hl, ports)
-	return printResults(out, results)
+	results := scan.Run(hl, ports, timeout, protocol)
+	return printResults(out, results, filter)
 }
 
-func printResults(out io.Writer, results []scan.Results) error {
+func printResults(out io.Writer, results []scan.Results, filter string) error {
 	message := ""
 
 	for _, r := range results {
@@ -51,7 +96,9 @@ func printResults(out io.Writer, results []scan.Results) error {
 		}
 		message += fmt.Sprintln()
 		for _, p := range r.PortStates {
-			message += fmt.Sprintf("\t%d: %s\n", p.Port, p.Open)
+			if filter == "both" || (filter == "open" && p.Open) || (filter == "closed" && !p.Open) {
+				message += fmt.Sprintf("\t%d: %s\n", p.Port, p.Open)
+			}
 		}
 		message += fmt.Sprintln()
 	}
@@ -62,15 +109,19 @@ func printResults(out io.Writer, results []scan.Results) error {
 func init() {
 	rootCmd.AddCommand(scanCmd)
 
-	scanCmd.Flags().IntSliceP("ports", "p", []int{22, 80, 443}, "ports to scan")
+	scanCmd.PersistentFlags().StringP("ports", "p", "22,80,443",
+		"ports to scan")
+	viper.BindPFlag("ports", scanCmd.PersistentFlags().Lookup("ports"))
 
-	// Here you will define your flags and configuration settings.
+	scanCmd.PersistentFlags().StringP("protocol", "x", "tcp",
+		"Protocol to scan")
+	viper.BindPFlag("protocol", scanCmd.PersistentFlags().Lookup("protocol"))
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// scanCmd.PersistentFlags().String("foo", "", "A help for foo")
+	scanCmd.PersistentFlags().IntP("timeout", "t", 1,
+		"timeout for scan in seconds")
+	viper.BindPFlag("timeout", scanCmd.PersistentFlags().Lookup("timeout"))
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// scanCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	scanCmd.PersistentFlags().StringP("filter", "b", "both",
+		"Display open ports, closed ports or both")
+	viper.BindPFlag("filter", scanCmd.PersistentFlags().Lookup("filter"))
 }

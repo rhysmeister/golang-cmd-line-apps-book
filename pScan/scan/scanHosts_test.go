@@ -69,7 +69,7 @@ func TestRunHostFound(t *testing.T) {
 		}
 	}
 
-	res := scan.Run(hl, ports)
+	res := scan.Run(hl, ports, 1, "tcp")
 
 	// Verify results for HostFound test
 	if len(res) != 1 {
@@ -106,22 +106,24 @@ func TestRunHostNotFound(t *testing.T) {
 
 	hl.Add(host)
 
-	res := scan.Run(hl, []int{})
+	for _, protocol := range []string{"tcp", "udp"} {
+		res := scan.Run(hl, []int{}, 1, protocol)
 
-	// Verify results for HostNotFound test
-	if len(res) != 1 {
-		t.Fatalf("Expected 1 results, got %d instead\n", len(res))
-	}
+		// Verify results for HostNotFound test
+		if len(res) != 1 {
+			t.Fatalf("Expected 1 results, got %d instead\n", len(res))
+		}
 
-	if res[0].Host != host {
-		t.Errorf("Expected host %q, got %q instead\n", host, res[0].Host)
-	}
+		if res[0].Host != host {
+			t.Errorf("Expected host %q, got %q instead\n", host, res[0].Host)
+		}
 
-	if !res[0].NotFound {
-		t.Errorf("Expected host %q NOT to be found\n", host)
-	}
+		if !res[0].NotFound {
+			t.Errorf("Expected host %q NOT to be found\n", host)
+		}
 
-	if len(res[0].PortStates) != 0 {
-		t.Fatalf("Expected 0 port states, got %d instead\n", len(res[0].PortStates))
+		if len(res[0].PortStates) != 0 {
+			t.Fatalf("Expected 0 port states, got %d instead\n", len(res[0].PortStates))
+		}
 	}
 }
